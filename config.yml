@@ -1,0 +1,68 @@
+# qt5Window2
+ # 参数 YU_ZHI 当匹配率小于YU_ZHI时视为有意义 数值越高精准度越低 最高为0.99
+        # NUM 只有连续NUM帧有意义时才记录帧数  数值越高精准度越高 最低为1
+        # LUAN_XU 容错，当后续步骤超过该值时判定乱序  数值越高进准度越低 最低为0
+        # 0.95 3 3 时检测步骤1不会出现乱序 当luan_xu低于3时会出现乱序错误
+        # 参数 WUCHA 表示当差值低于这个值之后判定在一条线上
+YU_ZHI: 0.95
+NUM: 3
+LUAN_XU: 0
+WUCHA: 7
+judge: 1       # judge 为0 启动第一次检测程序
+#ZLX : 5
+templePath: E:/AI/temples
+videoPath: E:/AI/操作视频/裁剪前/2.mp4
+resultPath: E:/AI/result
+cropSize:
+  -
+    - 1120
+    - 730
+    - 300
+    - 400
+  -
+    - 1750
+    - 500
+    - 500
+    - 700
+
+
+
+# match
+LOC_LIST:
+  -
+    - 1130
+    - 775
+  -
+    - 1253
+    - 799
+  -
+    - 1800
+    - 800
+  -
+    - 1850
+    - 900
+
+# Rule
+recLoc4one:
+  - 0
+  - 80
+  - 200
+  - 202
+
+recLoc4two:
+  - 80
+  - 125
+  - 280
+  - 325
+
+recLoc4three:
+  - 50
+  - 300
+  - 270
+  - 450
+
+recLoc4four:
+  - 100
+  - 400
+  - 400
+  - 600
