@@ -59,24 +59,24 @@ def run(videoPath):
 
     # 生成保存路径
     i = 1
-    savePath = resultPath + "\\" + str(i)
+    savePath = resultPath + "/" + str(i)
     while os.path.exists(savePath):
         i = i + 1
-        savePath = resultPath + "\\" + str(i)
+        savePath = resultPath + "/" + str(i)
     else:
         os.makedirs(savePath)
 
         # 生成match保存路径
-        matchPath = savePath + "\\match"
+        matchPath = savePath + "/match"
         # i = 1
-        # matchPath = savePath + "\\" + str(i)
+        # matchPath = savePath + "/" + str(i)
         # while os.path.exists(matchPath):
         #     i = i + 1
-        #     matchPath = savePath + "\\" + str(i)
+        #     matchPath = savePath + "/" + str(i)
         # else:
         #     os.makedirs(matchPath)
 
-    images_dirs = savePath + "\\" + "iamges"
+    images_dirs = savePath  + "/iamges"
     os.makedirs(images_dirs)
 
     re_string = "[0-9]*.jpg"
@@ -108,7 +108,7 @@ def run(videoPath):
     match_ratio_list = [0.0, 0.0, 0.0, 0.0]
 
     # 抽帧保存路径
-    save_dir = savePath + "\\video2image"
+    save_dir = savePath + "/video2image"
 
     if os.path.exists(save_dir) is False:
         os.makedirs(save_dir)
@@ -127,7 +127,7 @@ def run(videoPath):
     # 获取视频高度
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     photo_size = (frame_width, frame_height)
-    videoWriter = cv2.VideoWriter(savePath + '\\result.mp4', cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), fps,
+    videoWriter = cv2.VideoWriter(savePath + '/result.mp4', cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), fps,
                                   photo_size)
     while cap.isOpened():
         ret, frame = cap.read()  # 按帧读取视频
@@ -159,8 +159,8 @@ def run(videoPath):
 
             # cropSize = [(1120, 730, 300, 400), (1750, 500, 500, 700)]  # x y w h
             cropSize = dataInQt5Window2.get('cropSize')
-            cropPath = [savePath + '\\crop.jpg',
-                        savePath + '\\crop2.jpg']
+            cropPath = [savePath + '/crop.jpg',
+                        savePath + '/crop2.jpg']
 
             img1 = cv2.imread(save_image_dir, -1)  # 保持原格式
 
@@ -258,7 +258,7 @@ def run(videoPath):
                         shutil.rmtree(result[4])
                         if len(os.listdir(resultPath4Match)) == 0:
                             shutil.rmtree(resultPath4Match)
-            img_path = images_dirs + "\\" + str(frame) + ".jpg"
+            img_path = images_dirs + "/" + str(frame) + ".jpg"
 
             cv2.imwrite(img_path, img1)
             videoWriter.write(img1)
@@ -373,11 +373,12 @@ try:
                 state['list2'].append(flagt)
             state['framesl'] += framest
 
-except Exception:
+except Exception as e:
     usedtimeSec = time.perf_counter() - start
     state['start'] += usedtimeSec
     with open(state_file, 'wb') as f:
         pickle.dump(state, f)
+    print('error find,interrupt'+e)
     sys.exit(0)
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)
