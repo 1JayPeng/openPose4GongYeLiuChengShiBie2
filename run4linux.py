@@ -76,7 +76,7 @@ def run(videoPath):
         # else:
         #     os.makedirs(matchPath)
 
-    images_dirs = savePath  + "/iamges"
+    images_dirs = savePath + "/iamges"
     os.makedirs(images_dirs)
 
     re_string = "[0-9]*.jpg"
@@ -373,12 +373,12 @@ try:
                 state['list2'].append(flagt)
             state['framesl'] += framest
 
-except Exception as e:
+except:
     usedtimeSec = time.perf_counter() - start
     state['start'] += usedtimeSec
     with open(state_file, 'wb') as f:
         pickle.dump(state, f)
-    print('error find,interrupt'+e)
+    print('error find,interrupt')
     sys.exit(0)
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)
