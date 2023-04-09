@@ -338,57 +338,36 @@ except FileNotFoundError:
         'p': [],
     }
 start = time.perf_counter()
+
+
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
 # 处理正确列表中的视频
+def process_videos(videos, state, executor, video_list, state_list, state_video_names, state_num, flag_min, flag_max):
+    for p in [x for x in video_list if x not in state['p']]:
+        dirPath = videos + p
+        videoNames = os.listdir(dirPath)
+        state['p'].append(p)
+        futures = []
+        for videoName in [x for x in videoNames if x not in state_video_names]:
+            state_video_names.append(videoName)
+            state_num += 1
+            videoPath = os.path.join(dirPath, videoName)
+            futures.append(executor.submit(run, videoPath))
+        for future in concurrent.futures.as_completed(futures):
+            _, flagt, framest = future.result()
+            if flag_min <= flagt <= flag_max:
+                state_list.append(flagt)
+            state['framesl'] += framest
+
+
 try:
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        for p in [x for x in state['right'] if x not in state['p']]:
-            dirPath = videos + p
-            videoNames = os.listdir(dirPath)
-            state['p'].append(p)
-            futures = []
-            for videoName in [x for x in videoNames if x not in state['rightVideoNames']]:
-                state['rightVideoNames'].append(videoName)
-                state['num0'] += 1
-                videoPath = os.path.join(dirPath, videoName)
-                futures.append(executor.submit(run, videoPath))
-            for future in concurrent.futures.as_completed(futures):
-                _, flagt, framest = future.result()
-                if flagt == 0:
-                    state['list0'].append(flagt)
-                state['framesl'] += framest
-
-        # 处理缺少列表中的视频
-        for p in [x for x in state['lack'] if x not in state['p']]:
-            dirPath = videos + p
-            videoNames = os.listdir(dirPath)
-            futures = []
-            for videoName in [x for x in videoNames if x not in state['lackVideomNames']]:
-                state['lackVideomNames'].append(videoName)
-                state['num1'] += 1
-                videoPath = os.path.join(dirPath, videoName)
-                futures.append(executor.submit(run, videoPath))
-            for future in concurrent.futures.as_completed(futures):
-                _, flagt, framest = future.result()
-                if 1 <= flagt <= 4:
-                    state['list1'].append(flagt)
-                state['framesl'] += framest
-
-        # 处理错序列表中的视频
-        for p in [x for x in state['outOForder'] if x not in state['p']]:
-            dirPath = videos + p
-            videoNames = os.listdir(dirPath)
-            futures = []
-            for videoName in [x for x in videoNames if x not in state['outVideoNames']]:
-                state['outVideoNames'].append(videoName)
-                state['num2'] += 1
-                videoPath = os.path.join(dirPath, videoName)
-                futures.append(executor.submit(run, videoPath))
-            for future in concurrent.futures.as_completed(futures):
-                _, flagt, framest = future.result()
-                if 5 <= flagt <= 7:
-                    state['list2'].append(flagt)
-                state['framesl'] += framest
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        process_videos(videos, state, executor, [x for x in state['right'] if x not in state['p']], state['list0'],
+                       state['rightVideoNames'], state['num0'], 0, 0)
+        process_videos(videos, state, executor, [x for x in state['lack'] if x not in state['p']], state['list1'],
+                       state['lackVideomNames'], state['num1'], 1, 4)
+        process_videos(videos, state, executor, [x for x in state['outOForder'] if x not in state['p']], state['list2'],
+                       state['outVideoNames'], state['num2'], 5, 7)
 
 except:
     usedtimeSec = time.perf_counter() - start
