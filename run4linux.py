@@ -117,6 +117,76 @@ def run(videoPath):
 
     # 抽帧
     cap = cv2.VideoCapture(videoPath)  # 生成读取视频对象
+    frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)  # 获取视频总帧数
+    fps = cap.get(cv2.CAP_PROP_FPS)  # 获取视频帧率
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # 获取视频宽度
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # 获取视频高度
+    # print("视频总帧数:", frames)
+    # print("视频帧率:", fps)
+    # print("视频宽度:", width)
+    # print("视频高度:", height)
+    # print("视频时长:", frames / fps)
+
+    # 保存视频信息
+    with open(savePath + "/videoInfo.txt", 'w') as f:
+        f.write("视频总帧数:" + str(frames) + "
+    i = 1
+    savePath = resultPath + "/" + str(i)
+    while os.path.exists(savePath):
+        i = i + 1
+        savePath = resultPath + "/" + str(i)
+    else:
+        os.makedirs(savePath)
+
+        # 生成match保存路径
+        matchPath = savePath + "/match"
+        # i = 1
+        # matchPath = savePath + "/" + str(i)
+        # while os.path.exists(matchPath):
+        #     i = i + 1
+        #     matchPath = savePath + "/" + str(i)
+        # else:
+        #     os.makedirs(matchPath)
+
+    images_dirs = savePath + "/iamges"
+    os.makedirs(images_dirs)
+
+    re_string = "[0-9]*.jpg"
+    r = re.compile(re_string)
+
+    # 记录上一次有意义帧的序号
+    frame_temp_list = [0, 0, 0, 0]
+
+    # 暂存步骤执行的帧数 在判断连续执行时使用
+    a_temp = 0
+    b_temp = 0
+    c_temp = 0
+    d_temp = 0
+
+    # 记录步骤执行的帧数  a是第一步 b是第二步 c是第三步 d是第四步
+    a = 0
+    b = 0
+    c = 0
+    d = 0
+
+    # 标记位，标记是否开始检测
+    # judge 为1 启动检测程序
+    judge = dataInQt5Window2.get('judge')
+
+    # 记录讯息
+    message = ''
+
+    # 记录一帧的四个步骤的匹配率
+    match_ratio_list = [0.0, 0.0, 0.0, 0.0]
+
+    # 抽帧保存路径
+    save_dir = savePath + "/video2image"
+
+    if os.path.exists(save_dir) is False:
+        os.makedirs(save_dir)
+
+    # 抽帧
+    cap = cv2.VideoCapture(videoPath)  # 生成读取视频对象
     frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)  # 获取总帧数
 
     n = 1  # 计数
