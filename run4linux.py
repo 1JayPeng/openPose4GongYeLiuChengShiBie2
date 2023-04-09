@@ -1,3 +1,4 @@
+import concurrent
 import os
 import pickle
 import re
@@ -41,7 +42,7 @@ def run(videoPath):
 
     templePath = dataInQt5Window2.get('templePath')
     # videoPath = dataInQt5Window2.get('videoPath')
-    resultPath = dataInQt5Window2.get('resultPath')
+    resultPathY = dataInQt5Window2.get('resultPath')
 
     # 参数 YU_ZHI 当匹配率小于YU_ZHI时视为有意义 数值越高精准度越低 最高为0.99
     # NUM 只有连续NUM帧有意义时才记录帧数  数值越高精准度越高 最低为1
@@ -56,7 +57,13 @@ def run(videoPath):
     # 检测模板图片 模板图片需按正确流程顺序命名 第一个步骤命名为1或temple1
     temples_list = os.listdir(templePath)
     temples_list.sort()
-
+    i = 1
+    resultPath = resultPathY + "/" + str(i)
+    while os.path.exists(resultPath):
+        i = i + 1
+        resultPath = resultPathY + "/" + str(i)
+    else:
+        os.makedirs(resultPath)
     # 生成保存路径
     i = 1
     savePath = resultPath + "/" + str(i)
@@ -334,44 +341,54 @@ start = time.perf_counter()
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
 # 处理正确列表中的视频
 try:
-    for p in [x for x in state['right'] if x not in state['p']]:
-        dirPath = videos + p
-        videoNames = os.listdir(dirPath)
-        state['p'].append(p)
-        for videoName in [x for x in videoNames if x not in state['rightVideoNames']]:
-            state['rightVideoNames'].append(videoName)
-            state['num0'] += 1
-            videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath)
-            if flagt == 0:
-                state['list0'].append(flagt)
-            state['framesl'] += framest
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for p in [x for x in state['right'] if x not in state['p']]:
+            dirPath = videos + p
+            videoNames = os.listdir(dirPath)
+            state['p'].append(p)
+            futures = []
+            for videoName in [x for x in videoNames if x not in state['rightVideoNames']]:
+                state['rightVideoNames'].append(videoName)
+                state['num0'] += 1
+                videoPath = os.path.join(dirPath, videoName)
+                futures.append(executor.submit(run, videoPath))
+            for future in concurrent.futures.as_completed(futures):
+                _, flagt, framest = future.result()
+                if flagt == 0:
+                    state['list0'].append(flagt)
+                state['framesl'] += framest
 
-    # 处理缺少列表中的视频
-    for p in [x for x in state['lack'] if x not in state['p']]:
-        dirPath = videos + p
-        videoNames = os.listdir(dirPath)
-        for videoName in [x for x in videoNames if x not in state['lackVideomNames']]:
-            state['lackVideomNames'].append(videoName)
-            state['num1'] += 1
-            videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath)
-            if 1 <= flagt <= 4:
-                state['list1'].append(flagt)
-            state['framesl'] += framest
+        # 处理缺少列表中的视频
+        for p in [x for x in state['lack'] if x not in state['p']]:
+            dirPath = videos + p
+            videoNames = os.listdir(dirPath)
+            futures = []
+            for videoName in [x for x in videoNames if x not in state['lackVideomNames']]:
+                state['lackVideomNames'].append(videoName)
+                state['num1'] += 1
+                videoPath = os.path.join(dirPath, videoName)
+                futures.append(executor.submit(run, videoPath))
+            for future in concurrent.futures.as_completed(futures):
+                _, flagt, framest = future.result()
+                if 1 <= flagt <= 4:
+                    state['list1'].append(flagt)
+                state['framesl'] += framest
 
-    # 处理错序列表中的视频
-    for p in [x for x in state['outOForder'] if x not in state['p']]:
-        dirPath = videos + p
-        videoNames = os.listdir(dirPath)
-        for videoName in [x for x in videoNames if x not in state['outVideoNames']]:
-            state['outVideoNames'].append(videoName)
-            state['num2'] += 1
-            videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath)
-            if 5 <= flagt <= 7:
-                state['list2'].append(flagt)
-            state['framesl'] += framest
+        # 处理错序列表中的视频
+        for p in [x for x in state['outOForder'] if x not in state['p']]:
+            dirPath = videos + p
+            videoNames = os.listdir(dirPath)
+            futures = []
+            for videoName in [x for x in videoNames if x not in state['outVideoNames']]:
+                state['outVideoNames'].append(videoName)
+                state['num2'] += 1
+                videoPath = os.path.join(dirPath, videoName)
+                futures.append(executor.submit(run, videoPath))
+            for future in concurrent.futures.as_completed(futures):
+                _, flagt, framest = future.result()
+                if 5 <= flagt <= 7:
+                    state['list2'].append(flagt)
+                state['framesl'] += framest
 
 except:
     usedtimeSec = time.perf_counter() - start
@@ -380,6 +397,7 @@ except:
         pickle.dump(state, f)
     print('error find,interrupt')
     sys.exit(0)
+
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)
 # 计时结束
