@@ -1,4 +1,4 @@
-import concurrent
+import concurrent.futures
 import os
 import pickle
 import re
@@ -58,78 +58,8 @@ def run(videoPath):
     # 检测模板图片 模板图片需按正确流程顺序命名 第一个步骤命名为1或temple1
     temples_list = os.listdir(templePath)
     temples_list.sort()
-    # print(temples_list)
+
     # 生成保存路径
-    i = 1
-    savePath = resultPath + "/" + str(i)
-    while os.path.exists(savePath):
-        i = i + 1
-        savePath = resultPath + "/" + str(i)
-    else:
-        os.makedirs(savePath)
-
-        # 生成match保存路径
-        matchPath = savePath + "/match"
-        # i = 1
-        # matchPath = savePath + "/" + str(i)
-        # while os.path.exists(matchPath):
-        #     i = i + 1
-        #     matchPath = savePath + "/" + str(i)
-        # else:
-        #     os.makedirs(matchPath)
-
-    images_dirs = savePath + "/iamges"
-    os.makedirs(images_dirs)
-
-    re_string = "[0-9]*.jpg"
-    r = re.compile(re_string)
-
-    # 记录上一次有意义帧的序号
-    frame_temp_list = [0, 0, 0, 0]
-
-    # 暂存步骤执行的帧数 在判断连续执行时使用
-    a_temp = 0
-    b_temp = 0
-    c_temp = 0
-    d_temp = 0
-
-    # 记录步骤执行的帧数  a是第一步 b是第二步 c是第三步 d是第四步
-    a = 0
-    b = 0
-    c = 0
-    d = 0
-
-    # 标记位，标记是否开始检测
-    # judge 为1 启动检测程序
-    judge = dataInQt5Window2.get('judge')
-
-    # 记录讯息
-    message = ''
-
-    # 记录一帧的四个步骤的匹配率
-    match_ratio_list = [0.0, 0.0, 0.0, 0.0]
-
-    # 抽帧保存路径
-    save_dir = savePath + "/video2image"
-
-    if os.path.exists(save_dir) is False:
-        os.makedirs(save_dir)
-
-    # 抽帧
-    cap = cv2.VideoCapture(videoPath)  # 生成读取视频对象
-    frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)  # 获取视频总帧数
-    fps = cap.get(cv2.CAP_PROP_FPS)  # 获取视频帧率
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # 获取视频宽度
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # 获取视频高度
-    # print("视频总帧数:", frames)
-    # print("视频帧率:", fps)
-    # print("视频宽度:", width)
-    # print("视频高度:", height)
-    # print("视频时长:", frames / fps)
-
-    # 保存视频信息
-    with open(savePath + "/videoInfo.txt", 'w') as f:
-        f.write("视频总帧数:" + str(frames) + "
     i = 1
     savePath = resultPath + "/" + str(i)
     while os.path.exists(savePath):
@@ -210,9 +140,9 @@ def run(videoPath):
         # if n % timeF == 0:
         if True:
             i += 1
-            print(f'保存第 {i} 张图像')
+            # print(f'保存第 {i} 张图像')
             save_image_dir = os.path.join(save_dir, '%s.jpg' % i)
-            print('save_image_dir: ', save_image_dir)
+            # print('save_image_dir: ', save_image_dir)
             cv2.imwrite(save_image_dir, frame)  # 保存视频帧图像
 
             frame = r.search(save_image_dir).group(0)
@@ -403,6 +333,7 @@ except FileNotFoundError:
         'p': [],
     }
 start = time.perf_counter()
+print('开始时间：', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start)))
 
 
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
@@ -427,6 +358,7 @@ def process_videos(videos, state, executor, video_list, state_list, state_video_
             state['num0'] += 1
             # 获取视频路径
             videoPath = os.path.join(dirPath, videoName)
+            # print(str(state['num0']) + " " + videoPath)
             # 提交任务
             futures.append(executor.submit(run, videoPath))
         # 遍历future列表
@@ -437,21 +369,16 @@ def process_videos(videos, state, executor, video_list, state_list, state_video_
             if flag_min <= flagt <= flag_max:
                 # 将flag添加到状态列表中
                 state_list.append(flagt)
+                print(videoPath + " " + str(flagt))
             # 帧数加上当前视频的帧数
             state['framesl'] += framest
 
-try:
-    # 创建线程池
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-        # 处理正确列表中的视频
-        process_videos(videos, state, executor, [x for x in state['right'] if x not in state['p']], state['list0'], state['rightVideoNames'], state['num0'], 0, 0)
-        # 处理缺项列表中的视频
-        process_videos(videos, state, executor, [x for x in state['lack'] if x not in state['p']], state['list1'], state['lackVideomNames'], state['num1'], 1, 4)
-        # 处理乱序列表中的视频
-        process_videos(videos, state, executor, [x for x in state['outOForder'] if x not in state['p']], state['list2'], state['outVideoNames'], state['num2'], 5, 7)
 
-# 捕获异常
-except:
+import signal
+
+
+# 定义信号处理函数
+def signal_handler(signum, frame):
     # 计算已用时间
     usedtimeSec = time.perf_counter() - start
     # 更新开始时间
@@ -460,16 +387,50 @@ except:
     with open(state_file, 'wb') as f:
         pickle.dump(state, f)
     # 输出错误信息
-    print('error find,interrupt')
+    print('signal interrupt'+str(signum))
     # 退出程序
     sys.exit(0)
 
+
+try:
+    # 注册信号处理函数
+    # 捕捉所有可能的信号
+    for sig in [getattr(signal, n) for n in dir(signal) if n.startswith('SIG')]:
+        signal.signal(sig, signal_handler)
+    # 捕捉6号信号
+    signal.signal(signal.SIGABRT, signal_handler)
+    # 创建线程池
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        # 处理正确列表中的视频
+        process_videos(videos, state, executor, [x for x in state['right'] if x not in state['p']], state['list0'],
+                       state['rightVideoNames'], state['num0'], 0, 0)
+        # 处理缺项列表中的视频
+        process_videos(videos, state, executor, [x for x in state['lack'] if x not in state['p']], state['list1'],
+                       state['lackVideomNames'], state['num1'], 1, 4)
+        # 处理乱序列表中的视频
+        process_videos(videos, state, executor, [x for x in state['outOForder'] if x not in state['p']], state['list2'],
+                       state['outVideoNames'], state['num2'], 5, 7)
+
+# 捕获异常
+except Exception as e:
+    # 计算已用时间
+    usedtimeSec = time.perf_counter() - start
+    # 更新开始时间
+    state['start'] += usedtimeSec
+    # 将状态保存到文件中
+    with open(state_file, 'wb') as f:
+        pickle.dump(state, f)
+    # 输出错误信息
+    print('error find,interrupt \n' + str(e))
+    # 退出程序
+    sys.exit(0)
 
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)
 # 计时结束
 usedtimeSec = time.perf_counter() - start + state['start']
-
+print('结束时间：', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.perf_counter())) + " 耗时:" + time.strftime(
+    "%H:%M:%S", time.gmtime(usedtimeSec)))
 # usedtime = time.strftime("%H:%M:%S", time.gmtime(time.perf_counter() - start))
 save.save4linux(state['num0'], state['num1'], state['num2'], state['list0'], state['list1'], state['list2'],
                 usedtimeSec, state['framesl'])
