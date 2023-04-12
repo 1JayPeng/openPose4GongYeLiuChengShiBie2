@@ -338,7 +338,7 @@ start = time.perf_counter()
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
 
 
-def process_video(state_exclude, state_num, state_list, judge_flag, model_folder):
+async def process_video(state_exclude, state_num, state_list, judge_flag, model_folder):
     for p in [x for x in state['right'] if x not in state['p']]:
         dirPath = videos + p
         videoNames = os.listdir(dirPath)
