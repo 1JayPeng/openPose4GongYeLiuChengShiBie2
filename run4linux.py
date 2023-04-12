@@ -6,6 +6,7 @@ import shutil
 import signal
 import sys
 import time
+from typing import List, Tuple
 
 import cv2
 import yaml
@@ -34,7 +35,21 @@ videos = 'videos/'
 # sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
 
 
-def run(videoPath, model_folder):
+async def run(videoPath: str, model_folder: str) -> None:
+
+
+    """
+    运行程序，检测视频中的操作流程是否正确
+
+    Args:
+        videoPath (str): 视频路径
+        model_folder (str): 模板图片路径
+
+    Returns:
+        None
+    """
+
+
     start = time.perf_counter()
     flag = 0  # 0 表示正确，1表示 缺项 ，2表示乱序
     # 读取yaml配置文件
@@ -338,7 +353,20 @@ start = time.perf_counter()
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
 
 
-async def process_video(state_exclude, state_num, state_list, judge_flag, model_folder):
+async def process_video(state_exclude: List[str], state_num: int, state_list: List[int], judge_flag: Tuple[int, int], model_folder: str) -> None:
+
+
+    """
+    处理视频，返回处理结果
+
+    :param state_exclude: 排除的状态
+    :param state_num: 状态编号
+    :param state_list: 状态列表
+    :param judge_flag: 判断标志
+    :param model_folder: 模型文件夹
+    """
+
+
     for p in [x for x in state['right'] if x not in state['p']]:
         dirPath = videos + p
         videoNames = os.listdir(dirPath)
@@ -354,6 +382,14 @@ async def process_video(state_exclude, state_num, state_list, judge_flag, model_
 
 
 async def sigHandler(signum, frame):
+    """
+    信号处理函数，用于捕获程序中断信号并退出程序
+
+    :param signum: 信号编号
+    :param frame: 信号帧
+    """
+
+
     usedtimeSec = time.perf_counter() - start
     state['start'] += usedtimeSec
     with open(state_file, 'wb') as f:
