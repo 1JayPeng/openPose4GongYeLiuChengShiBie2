@@ -1,7 +1,9 @@
+import asyncio
 import os
 import pickle
 import re
 import shutil
+import signal
 import sys
 import time
 
@@ -32,7 +34,7 @@ videos = 'videos/'
 # sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
 
 
-def run(videoPath):
+def run(videoPath, model_folder):
     start = time.perf_counter()
     flag = 0  # 0 表示正确，1表示 缺项 ，2表示乱序
     # 读取yaml配置文件
@@ -174,7 +176,7 @@ def run(videoPath):
                     # cv2.imshow('1',cropImg)
                     # cv2.waitKey(0)
                     cv2.imwrite(cropPath[0], cropImg)
-                    jieGuo, imgComplete = twiceDetect.detect(cropPath[0])
+                    jieGuo, imgComplete = twiceDetect.detect(cropPath[0], model_folder)
                     # 手腕与手肘处于水平状态 且手腕在框内 判断执行第一步骤
                     try:
                         if Rule.one(jieGuo[0][4], jieGuo[0][7], jieGuo[0][3], jieGuo[0][6], WUCHA=WUCHA):
@@ -211,13 +213,13 @@ def run(videoPath):
                                 x, y, w, h = cropSize[0]
                                 cropImg = img1[y:y + h, x:x + w]
                                 cv2.imwrite(cropPath[0], cropImg)
-                                jieGuo, imgComplete = twiceDetect.detect(cropPath[0])
+                                jieGuo, imgComplete = twiceDetect.detect(cropPath[0], model_folder)
                                 img1[y:y + h, x:x + w] = imgComplete
                             else:
                                 x, y, w, h = cropSize[1]
                                 cropImg = img1[y:y + h, x:x + w]
                                 cv2.imwrite(cropPath[1], cropImg)
-                                jieGuo, imgComplete = twiceDetect.detect(cropPath[1])
+                                jieGuo, imgComplete = twiceDetect.detect(cropPath[1], model_folder)
                                 img1[y:y + h, x:x + w] = imgComplete
                             for jg in jieGuo:
                                 if temple == 0:
@@ -331,55 +333,46 @@ except FileNotFoundError:
         'p': [],
     }
 start = time.perf_counter()
+
+
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
-# 处理正确列表中的视频
-try:
+
+
+def process_video(state_exclude, state_num, state_list, judge_flag, model_folder):
     for p in [x for x in state['right'] if x not in state['p']]:
         dirPath = videos + p
         videoNames = os.listdir(dirPath)
         state['p'].append(p)
-        for videoName in [x for x in videoNames if x not in state['rightVideoNames']]:
+        for videoName in [x for x in videoNames if x not in state_exclude]:
             state['rightVideoNames'].append(videoName)
-            state['num0'] += 1
+            state_num += 1
             videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath)
-            if flagt == 0:
-                state['list0'].append(flagt)
+            _, flagt, framest = run(videoPath, model_folder)
+            if judge_flag[0] <= flagt <= judge_flag[1]:
+                state_list.append(flagt)
             state['framesl'] += framest
 
-    # 处理缺少列表中的视频
-    for p in [x for x in state['lack'] if x not in state['p']]:
-        dirPath = videos + p
-        videoNames = os.listdir(dirPath)
-        for videoName in [x for x in videoNames if x not in state['lackVideomNames']]:
-            state['lackVideomNames'].append(videoName)
-            state['num1'] += 1
-            videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath)
-            if 1 <= flagt <= 4:
-                state['list1'].append(flagt)
-            state['framesl'] += framest
 
-    # 处理错序列表中的视频
-    for p in [x for x in state['outOForder'] if x not in state['p']]:
-        dirPath = videos + p
-        videoNames = os.listdir(dirPath)
-        for videoName in [x for x in videoNames if x not in state['outVideoNames']]:
-            state['outVideoNames'].append(videoName)
-            state['num2'] += 1
-            videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath)
-            if 5 <= flagt <= 7:
-                state['list2'].append(flagt)
-            state['framesl'] += framest
-
-except:
+async def sigHandler(signum, frame):
     usedtimeSec = time.perf_counter() - start
     state['start'] += usedtimeSec
     with open(state_file, 'wb') as f:
         pickle.dump(state, f)
-    print('error find,interrupt')
-    sys.exit(0)
+    print('interrupt')
+    sys.exit(0)  # 退出程序
+
+
+async def main():
+    await asyncio.gather(
+        process_video(state['rightVideoNames'], state['num0'], state['list0'], [0, 0], 'openpose/models'),
+        process_video(state['lackVideomNames'], state['num1'], state['list1'], [1, 4], 'openposeCNN/models'),
+        process_video(state['outVideoNames'], state['num2'], state['list2'], [5, 7], 'models')
+    )
+
+
+signal.signal(signal.SIGABRT, sigHandler)
+asyncio.run(main())
+
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)
 # 计时结束
