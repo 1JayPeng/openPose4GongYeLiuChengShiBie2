@@ -1,8 +1,9 @@
-import concurrent.futures
+import asyncio
 import os
 import pickle
 import re
 import shutil
+import signal
 import sys
 import time
 
@@ -33,8 +34,7 @@ videos = 'videos/'
 # sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
 
 
-def run(videoPath):
-    #
+def run(videoPath, model_folder):
     start = time.perf_counter()
     flag = 0  # 0 表示正确，1表示 缺项 ，2表示乱序
     # 读取yaml配置文件
@@ -140,9 +140,9 @@ def run(videoPath):
         # if n % timeF == 0:
         if True:
             i += 1
-            # print(f'保存第 {i} 张图像')
+            print(f'保存第 {i} 张图像')
             save_image_dir = os.path.join(save_dir, '%s.jpg' % i)
-            # print('save_image_dir: ', save_image_dir)
+            print('save_image_dir: ', save_image_dir)
             cv2.imwrite(save_image_dir, frame)  # 保存视频帧图像
 
             frame = r.search(save_image_dir).group(0)
@@ -176,7 +176,7 @@ def run(videoPath):
                     # cv2.imshow('1',cropImg)
                     # cv2.waitKey(0)
                     cv2.imwrite(cropPath[0], cropImg)
-                    jieGuo, imgComplete = twiceDetect.detect(cropPath[0])
+                    jieGuo, imgComplete = twiceDetect.detect(cropPath[0], model_folder)
                     # 手腕与手肘处于水平状态 且手腕在框内 判断执行第一步骤
                     try:
                         if Rule.one(jieGuo[0][4], jieGuo[0][7], jieGuo[0][3], jieGuo[0][6], WUCHA=WUCHA):
@@ -213,13 +213,13 @@ def run(videoPath):
                                 x, y, w, h = cropSize[0]
                                 cropImg = img1[y:y + h, x:x + w]
                                 cv2.imwrite(cropPath[0], cropImg)
-                                jieGuo, imgComplete = twiceDetect.detect(cropPath[0])
+                                jieGuo, imgComplete = twiceDetect.detect(cropPath[0], model_folder)
                                 img1[y:y + h, x:x + w] = imgComplete
                             else:
                                 x, y, w, h = cropSize[1]
                                 cropImg = img1[y:y + h, x:x + w]
                                 cv2.imwrite(cropPath[1], cropImg)
-                                jieGuo, imgComplete = twiceDetect.detect(cropPath[1])
+                                jieGuo, imgComplete = twiceDetect.detect(cropPath[1], model_folder)
                                 img1[y:y + h, x:x + w] = imgComplete
                             for jg in jieGuo:
                                 if temple == 0:
@@ -333,104 +333,51 @@ except FileNotFoundError:
         'p': [],
     }
 start = time.perf_counter()
-print('开始时间：', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start)))
 
 
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
 
-# 处理正确列表中的视频
-def process_videos(videos, state, executor, video_list, state_list, state_video_names, state_num, flag_min, flag_max):
-    # 遍历视频列表
-    for p in [x for x in video_list if x not in state['p']]:
-        # 获取视频路径
+
+def process_video(state_exclude, state_num, state_list, judge_flag, model_folder):
+    for p in [x for x in state['right'] if x not in state['p']]:
         dirPath = videos + p
-        # 获取视频名称列表
         videoNames = os.listdir(dirPath)
-        # 将视频名称添加到已处理列表中
         state['p'].append(p)
-        # 创建future列表
-        futures = []
-        # 遍历视频名称列表
-        for videoName in [x for x in videoNames if x not in state_video_names]:
-            # 将视频名称添加到已处理列表中
-            state_video_names.append(videoName)
-            # 帧数加1
-            state['num0'] += 1
-            # 获取视频路径
+        for videoName in [x for x in videoNames if x not in state_exclude]:
+            state['rightVideoNames'].append(videoName)
+            state_num += 1
             videoPath = os.path.join(dirPath, videoName)
-            # print(str(state['num0']) + " " + videoPath)
-            # 提交任务
-            futures.append(executor.submit(run, videoPath))
-        # 遍历future列表
-        for future in concurrent.futures.as_completed(futures):
-            # 获取结果
-            _, flagt, framest = future.result()
-            # 判断flag是否在指定范围内
-            if flag_min <= flagt <= flag_max:
-                # 将flag添加到状态列表中
+            _, flagt, framest = run(videoPath, model_folder)
+            if judge_flag[0] <= flagt <= judge_flag[1]:
                 state_list.append(flagt)
-                print(videoPath + " " + str(flagt))
-            # 帧数加上当前视频的帧数
             state['framesl'] += framest
 
 
-import signal
-
-
-# 定义信号处理函数
-def signal_handler(signum, frame):
-    # 计算已用时间
+async def sigHandler(signum, frame):
     usedtimeSec = time.perf_counter() - start
-    # 更新开始时间
     state['start'] += usedtimeSec
-    # 将状态保存到文件中
     with open(state_file, 'wb') as f:
         pickle.dump(state, f)
-    # 输出错误信息
-    print('signal interrupt'+str(signum))
-    # 退出程序
-    sys.exit(0)
+    print('interrupt')
+    sys.exit(0)  # 退出程序
 
 
-try:
-    # 注册信号处理函数
-    # 捕捉所有可能的信号
-    for sig in [getattr(signal, n) for n in dir(signal) if n.startswith('SIG')]:
-        signal.signal(sig, signal_handler)
-    # 捕捉6号信号
-    signal.signal(signal.SIGABRT, signal_handler)
-    # 创建线程池
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        # 处理正确列表中的视频
-        process_videos(videos, state, executor, [x for x in state['right'] if x not in state['p']], state['list0'],
-                       state['rightVideoNames'], state['num0'], 0, 0)
-        # 处理缺项列表中的视频
-        process_videos(videos, state, executor, [x for x in state['lack'] if x not in state['p']], state['list1'],
-                       state['lackVideomNames'], state['num1'], 1, 4)
-        # 处理乱序列表中的视频
-        process_videos(videos, state, executor, [x for x in state['outOForder'] if x not in state['p']], state['list2'],
-                       state['outVideoNames'], state['num2'], 5, 7)
+async def main():
+    await asyncio.gather(
+        process_video(state['rightVideoNames'], state['num0'], state['list0'], [0, 0], 'openpose/models'),
+        process_video(state['lackVideomNames'], state['num1'], state['list1'], [1, 4], 'openposeCNN/models'),
+        process_video(state['outVideoNames'], state['num2'], state['list2'], [5, 7], 'models')
+    )
 
-# 捕获异常
-except Exception as e:
-    # 计算已用时间
-    usedtimeSec = time.perf_counter() - start
-    # 更新开始时间
-    state['start'] += usedtimeSec
-    # 将状态保存到文件中
-    with open(state_file, 'wb') as f:
-        pickle.dump(state, f)
-    # 输出错误信息
-    print('error find,interrupt \n' + str(e))
-    # 退出程序
-    sys.exit(0)
+
+signal.signal(signal.SIGABRT, sigHandler)
+asyncio.run(main())
 
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)
 # 计时结束
 usedtimeSec = time.perf_counter() - start + state['start']
-print('结束时间：', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.perf_counter())) + " 耗时:" + time.strftime(
-    "%H:%M:%S", time.gmtime(usedtimeSec)))
+
 # usedtime = time.strftime("%H:%M:%S", time.gmtime(time.perf_counter() - start))
 save.save4linux(state['num0'], state['num1'], state['num2'], state['list0'], state['list1'], state['list2'],
                 usedtimeSec, state['framesl'])
