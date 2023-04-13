@@ -353,9 +353,8 @@ start = time.perf_counter()
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
 
 
+
 async def process_video(state_exclude: List[str], state_num: int, state_list: List[int], judge_flag: Tuple[int, int], model_folder: str) -> None:
-
-
     """
     处理视频，返回处理结果
 
@@ -365,8 +364,6 @@ async def process_video(state_exclude: List[str], state_num: int, state_list: Li
     :param judge_flag: 判断标志
     :param model_folder: 模型文件夹
     """
-
-
     for p in [x for x in state['right'] if x not in state['p']]:
         dirPath = videos + p
         videoNames = os.listdir(dirPath)
@@ -375,21 +372,19 @@ async def process_video(state_exclude: List[str], state_num: int, state_list: Li
             state['rightVideoNames'].append(videoName)
             state_num += 1
             videoPath = os.path.join(dirPath, videoName)
-            _, flagt, framest = run(videoPath, model_folder)
+            fps, flagt, framest = await run(videoPath, model_folder)
             if judge_flag[0] <= flagt <= judge_flag[1]:
                 state_list.append(flagt)
             state['framesl'] += framest
 
 
-async def sigHandler(signum, frame):
+def sigHandler(signum, frame):
     """
     信号处理函数，用于捕获程序中断信号并退出程序
 
     :param signum: 信号编号
     :param frame: 信号帧
     """
-
-
     usedtimeSec = time.perf_counter() - start
     state['start'] += usedtimeSec
     with open(state_file, 'wb') as f:
@@ -407,7 +402,9 @@ async def main():
 
 
 signal.signal(signal.SIGABRT, sigHandler)
+signal.signal(signal.SIGINT, sigHandler)
 asyncio.run(main())
+
 
 # 所有任务执行完成后，删除状态文件
 os.remove(state_file)

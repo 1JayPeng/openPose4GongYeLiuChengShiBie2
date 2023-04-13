@@ -2,8 +2,11 @@ import os
 import sys
 from sys import platform
 
+# Set CUDA_VISIBLE_DEVICES to use GPU 1
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+# Disable HDF5 version check
 os.environ['HDF5_DISABLE_VERSION_CHECK'] = '2'
+
 import cv2
 import numpy as np
 
@@ -48,7 +51,7 @@ def detect(imgPath: str, model_folder: str, isShow: bool = False) -> Dict[str, A
     # 模型导入
     params = dict()
     params['model_folder'] = model_folder  # 模型地址
-
+    params["log_level"] = 4  # 日志等级
     # params[
     # "net_resolution"] = '1280x720'  # 分辨率,需要是16的倍数，降低这个参数可以以准确率为代价显著提升处理速度。
     params["net_resolution"] = '320x240'
