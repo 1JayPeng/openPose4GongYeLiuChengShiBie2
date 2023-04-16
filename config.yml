@@ -4,15 +4,18 @@
         # LUAN_XU 容错，当后续步骤超过该值时判定乱序  数值越高进准度越低 最低为0
         # 0.95 3 3 时检测步骤1不会出现乱序 当luan_xu低于3时会出现乱序错误
         # 参数 WUCHA 表示当差值低于这个值之后判定在一条线上
+state_file: state.pkl
 YU_ZHI: 0.95
 NUM: 3
 LUAN_XU: 0
 WUCHA: 7
 judge: 1       # judge 为0 启动第一次检测程序
 #ZLX : 5
-templePath: E:/AI/temples
-videoPath: E:/AI/操作视频/裁剪前/2.mp4
-resultPath: E:/AI/result
+#templePath: E:/AI/temples
+#videoPath: E:/AI/操作视频/裁剪前/2.mp4
+#resultPath: E:/AI/result
+templePath: temples
+resultPath: result
 cropSize:
   -
     - 1120

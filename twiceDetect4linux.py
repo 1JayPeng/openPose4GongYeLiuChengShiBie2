@@ -1,19 +1,45 @@
+# -*- coding: utf-8 -*-
 import os
+import pickle
+# import signal
 import sys
+import time
+import traceback
 from sys import platform
-
-# Set CUDA_VISIBLE_DEVICES to use GPU 1
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-# Disable HDF5 version check
-os.environ['HDF5_DISABLE_VERSION_CHECK'] = '2'
 
 import cv2
 import numpy as np
+import yaml
 
-from typing import Dict, Any
+# # Disable HDF5 version check
+# os.environ['HDF5_DISABLE_VERSION_CHECK'] = '2'
+
+with open('config.yml', 'r', encoding='utf-8') as y:
+    dataInQt5Window2 = yaml.safe_load(y)
+# 定义保存状态的文件路径
+state_file = dataInQt5Window2.get('state_file')
 
 
-def detect(imgPath: str, model_folder: str, isShow: bool = False) -> Dict[str, Any]:
+# def sigHandler(signum, frame, state):
+#     """
+#     信号处理函数，用于捕获程序中断信号并退出程序
+#
+#     :param signum: 信号编号
+#     :param frame: 信号帧
+#     :param state: 程序状态
+#     """
+#
+#     usedtimeSec = time.perf_counter() - state['start']
+#     state['start'] += usedtimeSec
+#     with open(state_file, 'wb') as f:
+#         pickle.dump(state, f)
+#     traceback.print_exc()
+#     raise SystemExit(signum)
+
+
+def detect(imgPath, model_folder, start1, GPU=1, isShow=False):
+    # Set CUDA_VISIBLE_DEVICES to use GPU 1
+    os.environ['CUDA_VISIBLE_DEVICES'] = GPU
     """
     用OpenPose对给定的图像进行人体姿态估计
 
@@ -52,6 +78,7 @@ def detect(imgPath: str, model_folder: str, isShow: bool = False) -> Dict[str, A
     params = dict()
     params['model_folder'] = model_folder  # 模型地址
     params["logging_level"] = 4  # 日志等级
+    params["disable_multi_thread"] = False  # 禁用多线程
     # params[
     # "net_resolution"] = '1280x720'  # 分辨率,需要是16的倍数，降低这个参数可以以准确率为代价显著提升处理速度。
     params["net_resolution"] = '320x240'
@@ -71,19 +98,27 @@ def detect(imgPath: str, model_folder: str, isShow: bool = False) -> Dict[str, A
     # net_resolution '设置);' 2 '将其缩放到最终的输出大小(设置为" " '分辨率');' 3 '将其缩放到[0,1]的范围内，其中(
     # 0,0)将是图像左上角的“”角，(1,1)是右下角的“”角;4表示范围[-1,1]，其中" "(-1，-1)是图像的左上角，(1,
     # 1)是右下角。与“scale_number”和“scale_gap”相关的非。
+    # signal.signal(signal.SIGABRT, sigHandler, start1)
+    try:
+        # 启动pyopenpose:
+        opWrapper = op.WrapperPython()
+        opWrapper.configure(params)
+        opWrapper.start()
+        # 传入一张图片
+        datum = op.Datum()
 
-    # 启动pyopenpose:
-    opWrapper = op.WrapperPython()
-    opWrapper.configure(params)
-    opWrapper.start()
-    # 传入一张图片
-    datum = op.Datum()
+        imageToProcess = cv2.imread(imgPath, cv2.IMREAD_ANYCOLOR)
 
-    imageToProcess = cv2.imread(imgPath, cv2.IMREAD_ANYCOLOR)
-
-    datum.cvInputData = imageToProcess
-    opWrapper.emplaceAndPop(op.VectorDatum([datum]))
-    pose = datum.poseKeypoints
+        datum.cvInputData = imageToProcess
+        opWrapper.emplaceAndPop(op.VectorDatum([datum]))
+        pose = datum.poseKeypoints
+    except:
+        usedtimeSec = time.perf_counter() - start1['start']
+        start1['start'] += usedtimeSec
+        with open(state_file, 'wb') as f:
+            pickle.dump(start1, f)
+        traceback.print_exc()
+        sys.exit(0)  # 退出程序
 
     # print(hand)
     if isShow:

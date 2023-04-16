@@ -17,3 +17,5 @@ venv/
 x64/
 # python
 __pycache__/
+
+.buildt
