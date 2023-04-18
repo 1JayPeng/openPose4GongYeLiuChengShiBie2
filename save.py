@@ -13,7 +13,8 @@ def save4linux(num0, num1, num2, list0, list1, list2, time, Frames):
     sImages = time / Frames
 
     df = pd.DataFrame(
-        {'true': pro0, 'lack': pro1, 'out': pro2, 'sImages': sImages, 'time': time, 'totalFrames': Frames,
+        {'true': pro0, 'lack': pro1, 'out': pro2, 'sImages': sImages,
+         'time': time, 'totalFrames': Frames,
          'num_true': num0,
          'num_lack': num1,
          'num_out': num2,
@@ -23,7 +24,8 @@ def save4linux(num0, num1, num2, list0, list1, list2, time, Frames):
     path = '../result'
     df.to_csv(path + "/result.csv", sep=',', encoding="utf-8-sig")
 
-def save4linux4one(num, list, time, Frames,judge):
+
+def save4linux4one(num, list, time, Frames, judge):
     pass
     pro = len(list) / num
     sImages = time / Frames
@@ -34,12 +36,7 @@ def save4linux4one(num, list, time, Frames,judge):
          }
     )
     path = '../result'
-    df.to_csv(path + "/result_"+judge+".csv", sep=',', encoding="utf-8-sig")
-
-
-
-
-
+    df.to_csv(path + "/result_" + judge + ".csv", sep=',', encoding="utf-8-sig")
 
 
 def save(frames_num, a, b, c, d, message, games_path, yu_zhi, wu_cha, luan_xu):

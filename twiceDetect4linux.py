@@ -118,7 +118,7 @@ def detect(imgPath, model_folder, start1, GPU=1, isShow=False):
         with open(state_file, 'wb') as f:
             pickle.dump(start1, f)
         traceback.print_exc()
-        sys.exit(0)  # 退出程序
+        sys.exit(1)  # 退出程序
 
     # print(hand)
     if isShow:

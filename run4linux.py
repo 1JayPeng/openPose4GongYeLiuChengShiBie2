@@ -398,10 +398,9 @@ def sigHandler(signum, frame, start, state):
     error(signum, start, state)
 
 
-def run_process_video(state_p, state_exclude, state_num, state_list,
-                      state_framesl,
+def run_process_video(
                       state_name, judge_flag, model_folder,
-                      gpu):
+                      gpu, is_show=False):
     """
     处理视频，返回处理结果
 
@@ -426,66 +425,110 @@ def run_process_video(state_p, state_exclude, state_num, state_list,
     :param gpu: 是否使用GPU
     :type gpu: bool
     """
+    global state
+    if state_name == state['right']:
+        for p in [x for x in state_name if x not in state['p']]:
+            dirPath = videos + p
+            videoNames = os.listdir(dirPath)
+            state['p'].append(p)
+            for videoName in [x for x in videoNames if x not in state['rightVideoNames']]:
+                state['rightVideoNames'].append(videoName)
+                state['num0'] += 1
+                if is_show:
+                    print('正在处理第%d个视频%s' % (state['num0'], videoName))
+                videoPath = os.path.join(dirPath, videoName)
+                fps, flagt, framest = run(videoPath, model_folder, gpu)
+                if judge_flag[0] <= flagt <= judge_flag[1]:
+                    state['list0'].append(flagt)
+                state['framesl1'] += framest
+    if state_name == state['lack']:
+        for p in [x for x in state_name if x not in state['p']]:
+            dirPath = videos + p
+            videoNames = os.listdir(dirPath)
+            state['p'].append(p)
+            for videoName in [x for x in videoNames if x not in state['lackVideomNames']]:
+                state['lackVideomNames'].append(videoName)
+                state['num1'] += 1
+                if is_show:
+                    print('正在处理第%d个视频%s' % (state['num1'], videoName))
+                videoPath = os.path.join(dirPath, videoName)
+                fps, flagt, framest = run(videoPath, model_folder, gpu)
+                if judge_flag[0] <= flagt <= judge_flag[1]:
+                    state['list1'].append(flagt)
+                state['framesl2'] += framest
+    if state_name == state['out']:
+        for p in [x for x in state_name if x not in state['p']]:
+            dirPath = videos + p
+            videoNames = os.listdir(dirPath)
+            state['p'].append(p)
+            for videoName in [x for x in videoNames if x not in state['outVideomNames']]:
+                state['outVideomNames'].append(videoName)
+                state['num2'] += 1
+                if is_show:
+                    print('正在处理第%d个视频%s' % (state['num2'], videoName))
+                videoPath = os.path.join(dirPath, videoName)
+                fps, flagt, framest = run(videoPath, model_folder, gpu)
+                if judge_flag[0] <= flagt <= judge_flag[1]:
+                    state['list2'].append(flagt)
+                state['framesl3'] += framest
 
-    for p in [x for x in state_name if x not in state_p]:
-        dirPath = videos + p
-        videoNames = os.listdir(dirPath)
-        state_p.append(p)
-        for videoName in [x for x in videoNames if x not in state_exclude]:
-            state_exclude.append(videoName)
-            state_num += 1
-            videoPath = os.path.join(dirPath, videoName)
-            fps, flagt, framest = run(videoPath, model_folder, gpu)
-            if judge_flag[0] <= flagt <= judge_flag[1]:
-                state_list.append(flagt)
-            state_framesl += framest
-
-
-def run_main(start, state):
+def run_main(start, is_show=False):
     """
     处理视频，返回处理结果
 
     :param start: 开始
-    :param state: 状态
     """
-
+    global state
     p1 = Process(target=run_process_video,
-                 kwargs={'state_p': state['p'],
-                         'state_exclude': state['rightVideoNames'],
-                         'state_num': state['num0'],
-                         'state_list': state['list0'],
-                         'state_framesl': state['framesl1'],
+                 kwargs={
                          'state_name': state['right'], 'judge_flag': (0, 0),
-                         'model_folder': 'openpose/models', 'gpu': '0'})
+                         'model_folder': 'openpose/models', 'gpu': '0',
+                         'is_show': is_show})
     p2 = Process(target=run_process_video,
-                 kwargs={'state_p': state['p'],
-                         'state_exclude': state['lackVideomNames'],
-                         'state_num': state['num1'],
-                         'state_list': state['list1'],
-                         'state_framesl': state['framesl2'],
+                 kwargs={
                          'state_name': state['lack'], 'judge_flag': (1, 4),
-                         'model_folder': 'openposeCNN/models', 'gpu': '0'})
+                         'model_folder': 'openposeCNN/models', 'gpu': '0',
+                         'is_show': is_show})
     p3 = Process(target=run_process_video,
-                 kwargs={'state_p': state['p'],
-                         'state_exclude': state['outVideoNames'],
-                         'state_num': state['num2'],
-                         'state_list': state['list2'],
-                         'state_framesl': state['framesl3'],
+                 kwargs={
                          'state_name': state['out'], 'judge_flag': (5, 7),
-                         'model_folder': 'models', 'gpu': '1'})
+                         'model_folder': 'models', 'gpu': '0', 'is_show':
+                             is_show})
 
     p1.start()
     p1.join()
+    if is_show:
+        print('p:' + str(state['p']))
+        print('rightVideoNames:' + str(state['rightVideoNames']))
+        print('num0:' + str(state['num0']))
+        print('list0:' + str(state['list0']))
+        print('framesl1:' + str(state['framesl1']))
+        print('right:' + str(state['right']))
     p2.start()
     p2.join()
+    if is_show:
+        print('p:' + str(state['p']))
+        print('lackVideomNames:' + str(state['lackVideomNames']))
+        print('num1:' + str(state['num1']))
+        print('list1:' + str(state['list1']))
+        print('framesl2:' + str(state['framesl2']))
+        print('lack:' + str(state['lack']))
     p3.start()
     p3.join()
+    if is_show:
+        print('p:' + str(state['p']))
+        print('outVideoNames:' + str(state['outVideoNames']))
+        print('num2:' + str(state['num2']))
+        print('list2:' + str(state['list2']))
+        print('framesl3:' + str(state['framesl3']))
+        print('out:' + str(state['out']))
     if p1.exitcode != 0:
         # 子进程不是正常退出，处理异常情况并关闭主进程
         print(f"p1子进程异常退出，退出状态码为{p1.exitcode}")
         error(p1.exitcode, start, state)
         exit(1)
     else:
+        print('p1结束')
         usedtimeSec = time.perf_counter() - start + state['start']
         save.save4linux4one(state['num0'], state['list0'], usedtimeSec,
                             state['framesl1'], 'right')
@@ -496,6 +539,7 @@ def run_main(start, state):
         error(p2.exitcode, start, state)
         exit(1)
     else:
+        print('p2结束')
         usedtimeSec = time.perf_counter() - start + state['start']
         save.save4linux4one(state['num1'], state['list1'], usedtimeSec,
                             state['framesl2'], 'lack')
@@ -506,6 +550,7 @@ def run_main(start, state):
         error(p3.exitcode, start, state)
         exit(1)
     else:
+        print('p3结束')
         usedtimeSec = time.perf_counter() - start + state['start']
         save.save4linux4one(state['num2'], state['list2'], usedtimeSec,
                             state['framesl3'], 'out')
@@ -525,6 +570,7 @@ if __name__ == '__main__':
     try:
         with open(state_file, 'rb') as f:
             state = pickle.load(f)
+        print(state)
     except FileNotFoundError:
         # 如果找不到状态文件，则说明程序是第一次执行，初始化状态
         state = {
@@ -548,11 +594,13 @@ if __name__ == '__main__':
             'p': [],  # 已处理的文件夹
         }
     start = time.perf_counter()
+    print('start:' + str(start))
+    print('state:' + str(state))
     try:
         sig_handler = functools.partial(sigHandler, start=start, state=state)
         signal.signal(signal.SIGABRT, sig_handler)
         signal.signal(signal.SIGINT, sig_handler)
-        run_main(start, state)
+        run_main(start, True)
     except Exception as e:
         error(e, start, state)
 
