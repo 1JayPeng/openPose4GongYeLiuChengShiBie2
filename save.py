@@ -21,8 +21,8 @@ def save4linux(num0, num1, num2, list0, list1, list2, time, Frames):
 
          }
     )
-    path = '../result'
-    df.to_csv(path + "/result.csv", sep=',', encoding="utf-8-sig")
+    path = 'result'
+    df.to_csv(path + "/resultAll.csv", sep=',', encoding="utf-8-sig")
 
 
 def save4linux4one(num, list, time, Frames, judge):
@@ -35,7 +35,7 @@ def save4linux4one(num, list, time, Frames, judge):
          'num_true': num,
          }
     )
-    path = '../result'
+    path = 'result'
     df.to_csv(path + "/result_" + judge + ".csv", sep=',', encoding="utf-8-sig")
 
 

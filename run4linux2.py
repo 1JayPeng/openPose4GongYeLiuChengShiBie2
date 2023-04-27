@@ -1,25 +1,18 @@
 # -*- coding: utf-8 -*-
-import functools
 import os
-import pickle
 import re
 import shutil
-import signal
-import sys
 import time
-import traceback
-from multiprocessing import Process
 
 import cv2
+import pandas as pd
 import yaml
 
 import Rule
 import match
-import save
-import twiceDetect4linux as twiceDetect
+import twiceDetect4linux2 as twiceDetect
 
 videos = 'videos/'
-
 
 # num0 = 0
 # num1 = 0
@@ -28,7 +21,9 @@ videos = 'videos/'
 # list0 = []
 # list1 = []
 # list2 = []
-# right = ['1234/']
+right = ['1234/']
+
+
 # lack = ['12/', '13/', '14/', '123/', '124/', '134/']
 # outOForder = ['1423/', '1432/', '1342/', '1324/']
 # framesl = 0
@@ -48,7 +43,8 @@ def run(videoPath, model_folder, gpu, resultPath):
         gpu: 是否使用GPU加速
 
     Returns:
-        无返回值
+        bool: 操作流程是否正确
+
     """
 
     start = time.perf_counter()
@@ -215,7 +211,7 @@ def run(videoPath, model_folder, gpu, resultPath):
 
                     jieGuo, imgComplete = twiceDetect.detect(cropPath[0],
                                                              model_folder,
-                                                             state, gpu)
+                                                               gpu)
                     # 手腕与手肘处于水平状态 且手腕在框内 判断执行第一步骤
                     try:
                         if Rule.one(jieGuo[0][4], jieGuo[0][7], jieGuo[0][3],
@@ -258,7 +254,7 @@ def run(videoPath, model_folder, gpu, resultPath):
                                 cv2.imwrite(cropPath[0], cropImg)
 
                                 jieGuo, imgComplete = twiceDetect.detect(
-                                    cropPath[0], model_folder, state, gpu)
+                                    cropPath[0], model_folder,   gpu)
                                 img1[y:y + h, x:x + w] = imgComplete
                             else:
                                 x, y, w, h = cropSize[1]
@@ -267,7 +263,7 @@ def run(videoPath, model_folder, gpu, resultPath):
                                 cv2.imwrite(cropPath[1], cropImg)
 
                                 jieGuo, imgComplete = twiceDetect.detect(
-                                    cropPath[1], model_folder, state, gpu)
+                                    cropPath[1], model_folder,   gpu)
                                 img1[y:y + h, x:x + w] = imgComplete
                             for jg in jieGuo:
                                 if temple == 0:
@@ -360,276 +356,43 @@ def run(videoPath, model_folder, gpu, resultPath):
 
 
 # flag中，0表示正确执行，1、2、3、4表示缺项，分别时1、2、3、4缺失，5，6，7则表示乱序，分别表示1、2、3未执行
+f = 0
+x = 0
+frames1 = 0
+start = time.perf_counter()
+for p in right:
+    dirPath = videos + p
+    videoNames = os.listdir(dirPath)
+    for videoName in videoNames:
+        #
+        x += 1
+        print('正在处理第%d个视频%s' % (x, videoName))
+        videoPath = os.path.join(dirPath, videoName)
+        fps, flagt, framest = run(videoPath, 'openpose/models', '0',
+                                  'result_1')
+        frames1 += framest
+        if 0 <= flagt <= 0:
+            f += 1
+            print('第%d个视频%s处理完成' % (x, videoName))
 
-def error(e, start, state):
-    """
-    错误处理函数
-
-    :param e: 异常
-    :param start: 开始时间
-    :param state: 状态
-    """
-    usedtimeSec = time.perf_counter() - start
-    state['start'][0] += usedtimeSec
-    with open(state_file, 'wb') as f:
-        pickle.dump(state, f)
-    traceback.print_exc()
-    raise SystemExit(e)
-
-
-def sigHandler(signum, frame, start, state):
-    """
-    信号处理函数，用于捕获程序中断信号并退出程序
-
-    :param signum: 信号编号
-    :type signum: int
-    :param frame: 信号帧
-    :type frame: Any
-    :param start: 开始时间
-    :type start: float
-    :param state: 状态
-    :type state: dict
-    """
-    error(signum, start, state)
-
-
-
-
-def run_process_video(
-        state_name, judge_flag, model_folder,
-        gpu, is_show=False):
-    """
-    处理视频，返回处理结果
-    :param state_name: 状态名称
-    :type state_name: list[str]
-    :param judge_flag: 判断标志
-    :type judge_flag: tuple[int, int]
-    :param model_folder: 模型文件夹
-    :type model_folder: str
-    :param l: 阈值
-    :type l: float
-    :param gpu: 是否使用GPU
-    :type gpu: bool
-    """
-    global state
-    if state_name == state['right']:
-        for p in [x for x in state_name if x not in state['p']]:
-            dirPath = videos + p
-            videoNames = os.listdir(dirPath)
-            state['p'].append(p)
-            for videoName in [x for x in videoNames if
-                              x not in state['rightVideoNames']]:
-                state['rightVideoNames'].append(videoName)
-                state['num0'][0] += 1
-                if is_show:
-                    print('正在处理第%d个视频%s' % (state['num0'][0], videoName))
-                videoPath = os.path.join(dirPath, videoName)
-                fps, flagt, framest = run(videoPath, model_folder, gpu,
-                                          'result_right')
-                if judge_flag[0] <= flagt <= judge_flag[1]:
-                    state['list0'].append(flagt)
-                state['framesl1'][0] += framest
-    if state_name == state['lack']:
-        for p in [x for x in state_name if x not in state['p']]:
-            dirPath = videos + p
-            videoNames = os.listdir(dirPath)
-            state['p'].append(p)
-            for videoName in [x for x in videoNames if
-                              x not in state['lackVideomNames']]:
-                state['lackVideomNames'].append(videoName)
-                state['num1'][0] += 1
-                if is_show:
-                    print('正在处理第%d个视频%s' % (state['num1'][0], videoName))
-                videoPath = os.path.join(dirPath, videoName)
-                fps, flagt, framest = run(videoPath, model_folder, gpu,
-                                          'result_lack')
-                if judge_flag[0] <= flagt <= judge_flag[1]:
-                    state['list1'].append(flagt)
-                state['framesl2'][0] += framest
-    if state_name == state['out']:
-        for p in [x for x in state_name if x not in state['p']]:
-            dirPath = videos + p
-            videoNames = os.listdir(dirPath)
-            state['p'].append(p)
-            for videoName in [x for x in videoNames if
-                              x not in state['outVideoNames']]:
-                state['outVideoNames'].append(videoName)
-                state['num2'][0] += 1
-                if is_show:
-                    print('正在处理第%d个视频%s' % (state['num2'][0], videoName))
-                videoPath = os.path.join(dirPath, videoName)
-                fps, flagt, framest = run(videoPath, model_folder, gpu,
-                                          'result_out')
-                if judge_flag[0] <= flagt <= judge_flag[1]:
-                    state['list2'].append(flagt)
-                state['framesl3'][0] += framest
-
-
-def run_main(start, is_show=False):
-    """
-    处理视频，返回处理结果
-
-    :param start: 开始
-    """
-
-    global state
-    gpu = '0'
-    p1 = Process(target=run_process_video,
-                 kwargs={
-                     'state_name': state['right'], 'judge_flag': (0, 0),
-                     'model_folder': 'openpose/models', 'gpu': gpu,
-                     'is_show': is_show})
-    p2 = Process(target=run_process_video,
-                 kwargs={
-                     'state_name': state['lack'], 'judge_flag': (1, 4),
-                     'model_folder': 'openposeCNN/models', 'gpu': '1',
-                     'is_show': is_show})
-    p3 = Process(target=run_process_video,
-                 kwargs={
-                     'state_name': state['out'], 'judge_flag': (5, 7),
-                     'model_folder': 'models', 'gpu': gpu, 'is_show':
-                         is_show})
-
-    p1.start()
-    # p2.start()
-    p1.join()
-    if is_show:
-        print('p1')
-        print()
-        print('p:' + str(state['p']))
-        print('rightVideoNames:' + str(state['rightVideoNames']))
-        print('num0:' + str(state['num0'][0]))
-        print('list0:' + str(state['list0']))
-        print('framesl1:' + str(state['framesl1'][0]))
-        print('right:' + str(state['right']))
-
-    # p2.join()
-    if is_show:
-        print('p2')
-        print()
-        print('p:' + str(state['p']))
-        print('lackVideomNames:' + str(state['lackVideomNames']))
-        print('num1:' + str(state['num1'][0]))
-        print('list1:' + str(state['list1']))
-        print('framesl2:' + str(state['framesl2'][0]))
-        print('lack:' + str(state['lack']))
-    # p3.start()
-    # p3.join()
-    if is_show:
-        print('p3')
-        print()
-        print('p:' + str(state['p']))
-        print('outVideoNames:' + str(state['outVideoNames']))
-        print('num2:' + str(state['num2'][0]))
-        print('list2:' + str(state['list2']))
-        print('framesl3:' + str(state['framesl3'][0]))
-        print('out:' + str(state['out']))
-    if p1.exitcode != 0:
-        # 子进程不是正常退出，处理异常情况并关闭主进程
-        print(f"p1子进程异常退出，退出状态码为{p1.exitcode}")
-        error(p1.exitcode, start, state)
-        sys.exit(1)
-    else:
-        print('p1结束')
-        usedtimeSec = time.perf_counter() - start + state['start'][0]
-        save.save4linux4one(state['num0'][0], state['list0'], usedtimeSec,
-                            state['framesl1'][0], 'right')
-        print(f"p1子进程正常退出，退出状态码为{p1.exitcode}")
-    if p2.exitcode != 0:
-        # 子进程不是正常退出，处理异常情况并关闭主进程
-        print(f"p2子进程异常退出，退出状态码为{p2.exitcode}")
-        error(p2.exitcode, start, state)
-        # sys.exit(1)
-        p2 = Process(target=run_process_video,
-                     kwargs={
-                         'state_name': state['lack'], 'judge_flag': (1, 4),
-                         'model_folder': 'openposeCNN/models', 'gpu': gpu,
-                         'is_show': is_show})
-        p2.start()
-        p2.join()
-        if is_show:
-            print('p2')
-            print()
-            print('p:' + str(state['p']))
-            print('lackVideomNames:' + str(state['lackVideomNames']))
-            print('num1:' + str(state['num1'][0]))
-            print('list1:' + str(state['list1']))
-            print('framesl2:' + str(state['framesl2'][0]))
-            print('lack:' + str(state['lack']))
-    else:
-        print('p2结束')
-        usedtimeSec = time.perf_counter() - start + state['start'][0]
-        save.save4linux4one(state['num1'][0], state['list1'], usedtimeSec,
-                            state['framesl2'][0], 'lack')
-        print(f"p2子进程正常退出，退出状态码为{p2.exitcode}")
-    if p3.exitcode != 0:
-        # 子进程不是正常退出，处理异常情况并关闭主进程
-        print(f"p3子进程异常退出，退出状态码为{p3.exitcode}")
-        error(p3.exitcode, start, state)
-        sys.exit(1)
-    else:
-        print('p3结束')
-        usedtimeSec = time.perf_counter() - start + state['start'][0]
-        save.save4linux4one(state['num2'][0], state['list2'], usedtimeSec,
-                            state['framesl3'][0], 'out')
-        print(f"p3子进程正常退出，退出状态码为{p3.exitcode}")
-
-
-#
-if __name__ == '__main__':
-    with open('config.yml', 'r', encoding='utf-8') as y:
-        dataInQt5Window2 = yaml.safe_load(y)
-        # 定义保存状态的文件路径
-    state_file = dataInQt5Window2.get('state_file')
-    print(dataInQt5Window2)
-    tasks = ['right', 'lack', 'outOForder']
-
-    # 尝试加载上一次保存的状态
-
-    try:
-        with open(state_file, 'rb') as f:
-            state = pickle.load(f)
-        print(state)
-    except FileNotFoundError:
-        # 如果找不到状态文件，则说明程序是第一次执行，初始化状态
-        state = {
-            'num0': [0],  # 已经检测的视频数
-            'num1': [0],  # 已经检测的视频数
-            'num2': [0],  # 已经检测的视频数
-            'list0': [],  # 用于保存检测结果
-            'list1': [],  # 用于保存检测结果
-            'list2': [],  # 用于保存检测结果
-            'framesl1': [0],  # 已经检测的帧数
-            'framesl2': [0],  # 已经检测的帧数
-            'framesl3': [0],  # 已经检测的帧数
-            'rightVideoNames': [],  # 已处理的文件
-            'right': ['1234/'],  # 需要处理的文件夹
-            'lackVideomNames': [],  # 已处理的文件
-            'lack': ['12/', '13/', '14/', '123/', '124/', '134/'],  # 需要处理的文件夹
-            'outVideoNames': [],  # 已处理的文件
-            'out': ['1423/', '1432/', '1342/', '1324/'],  # 需要处理的文件夹
-            # 其他需要保存的状态
-            'start': [0.0],  # 开始时间
-            'p': [],  # 已处理的文件夹
-        }
-    start = time.perf_counter()
-    print('start:' + str(start))
-    print('state:' + str(state))
-    try:
-        sig_handler = functools.partial(sigHandler, start=start, state=state)
-        signal.signal(signal.SIGABRT, sig_handler)
-        signal.signal(signal.SIGINT, sig_handler)
-        run_main(start, True)
-    except Exception as e:
-        error(e, start, state)
-
-    os.remove(state_file)
-    # 计时结束
-    usedtimeSec = time.perf_counter() - start + state['start'][0]
-
-    # usedtime = time.strftime("%H:%M:%S", time.gmtime(time.perf_counter() -
-    # start))
-    save.save4linux(state['num0'][0], state['num1'][0], state['num2'][0], state['list0'],
-                    state['list1'], state['list2'],
-                    usedtimeSec,
-                    state['framesl1'][0] + state['framesl2'][0] + state['framesl3'][0])
+end = time.perf_counter() - start  # 总耗时
+pro = f / x  # 正确率
+sImages = frames1 / end  # 每秒处理图片数
+time = end / x  # 每个视频平均处理时间
+print('正确率：%.2f' % pro)
+print('每秒处理图片数：%.2f' % sImages)
+print('每个视频平均处理时间：%.2f' % time)
+print('总耗时：%.2f' % end)
+print('总视频数：%.2f' % x)
+print('总帧数：%.2f' % frames1)
+print('正确视频数：%.2f' % f)
+df = pd.DataFrame(
+    {'true': pro, 'sImages': sImages, 'time': time,
+     'totalvideos': x,
+     'totalframes': frames1,
+     'num_true': f,
+     }
+)
+path = os.getcwd()
+df.to_csv(path + "/result_" + 'true' + ".csv", sep=',',
+          encoding="utf-8-sig")

@@ -9,13 +9,13 @@ YU_ZHI: 0.95
 NUM: 3
 LUAN_XU: 0
 WUCHA: 7
-judge: 1       # judge 为0 启动第一次检测程序
+judge: 0       # judge 为0 启动第一次检测程序
 #ZLX : 5
 #templePath: E:/AI/temples
 #videoPath: E:/AI/操作视频/裁剪前/2.mp4
 #resultPath: E:/AI/result
 templePath: temples
-resultPath: result
+#resultPath: result2
 cropSize:
   -
     - 1120
